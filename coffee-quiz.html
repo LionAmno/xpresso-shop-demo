@@ -551,6 +551,9 @@ const el = (tag, attrs = {}, ...children) => {
   return node
 }
 
+/** Replaces the page content; skips empty children (null would otherwise render as the text "null"). */
+const show = (...children) => app.replaceChildren(...children.flat(Infinity).filter((c) => c !== null && c !== undefined && c !== false))
+
 function optionLabel(question, optionId) {
   const q = t().questions[question.id]
   return question.id === 'weights' ? t().dims[optionId] : q.options[optionId]
@@ -578,7 +581,7 @@ function renderQuestion() {
   }
 
   const heading = el('h1', { tabindex: '-1' }, texts.title)
-  app.replaceChildren(
+  show(
     el('div', { class: 'progress' },
       el('span', { class: 'progress-label' }, t().progress(state.step + 1, total)),
       el('div', { class: 'progress-track', role: 'progressbar', 'aria-valuemin': '1', 'aria-valuemax': String(total), 'aria-valuenow': String(state.step + 1), 'aria-label': t().progressLabel },
@@ -726,7 +729,7 @@ function renderResults() {
   const matches = [...top, alsoInteresting].filter(Boolean)
   const heading = el('h1', { tabindex: '-1', class: 'results-title' }, t().resultTitle)
 
-  app.replaceChildren(
+  show(
     el('header', { class: 'results-head' },
       el('p', { class: 'results-eyebrow' }, t().resultEyebrow),
       heading),
