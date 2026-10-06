@@ -1,0 +1,778 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="color-scheme" content="light dark" />
+<title>Coffee Quiz – X-Presso</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%224%22 fill=%22%233c1f00%22/%3E%3Ctext x=%2216%22 y=%2223%22 font-family=%22Georgia,serif%22 font-size=%2220%22 font-style=%22italic%22 fill=%22white%22 text-anchor=%22middle%22%3EX%3C/text%3E%3C/svg%3E" />
+<style>
+  :root {
+    --bg: #faf6f0;
+    --surface: #ffffff;
+    --text: #2a1a10;
+    --muted: #6e5c50;
+    --brown: #3c1f00;
+    --cream: #f1e6d8;
+    --border: #e4d8ca;
+    --seg-empty: #e9e0d5;
+    --seg-fill: #5a3420;
+    --accent: #2c4592;
+    --card-bg: #efedea;
+    --on-accent: #ffffff;
+    --radius: 10px;
+    --tap: 52px;
+    font-family: system-ui, Arial, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a120d;
+      --surface: #241a14;
+      --text: #f3e9df;
+      --muted: #c2b0a2;
+      --brown: #e8d4bf;
+      --cream: #33251c;
+      --border: #3d2e24;
+      --seg-empty: #3d2e24;
+      --seg-fill: #d9b48f;
+      --accent: #8fa6ec; /* lighter tint of #2C4592 for contrast on dark backgrounds */
+      --card-bg: #2d221b;
+      --on-accent: #0f1530;
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { margin: 0; }
+
+  body {
+    min-height: 100dvh;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  /* Headings receive focus programmatically on each step (for screen readers); no ring needed. */
+  h1[tabindex="-1"]:focus { outline: none; }
+
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    background: var(--brown);
+    color: var(--bg);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .topbar { background: #0f0a07; color: var(--text); }
+  }
+
+  .brand { display: inline-flex; align-items: center; min-height: 44px; }
+  .brand img { display: block; width: auto; height: 34px; }
+
+  .topbar a {
+    color: inherit;
+    font-size: 0.95rem;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  main { width: 100%; max-width: 46rem; margin: 0 auto; padding: 1.25rem 1rem 3rem; }
+
+  .progress { display: grid; gap: 0.4rem; margin-bottom: 1.25rem; }
+  .progress-label { font-size: 0.9rem; color: var(--muted); }
+  .progress-track { height: 6px; border-radius: 3px; background: var(--seg-empty); overflow: hidden; }
+  .progress-bar { height: 100%; background: var(--accent); transition: width 200ms ease; }
+
+  h1, h2 { margin: 0; color: var(--brown); line-height: 1.2; }
+  h1 { font-size: clamp(1.5rem, 1.2rem + 1.5vw, 2rem); }
+  h2 { font-size: 1.25rem; }
+  .hint { margin: 0.4rem 0 0; color: var(--muted); }
+
+  .options { display: grid; gap: 0.6rem; margin: 1.25rem 0 0; padding: 0; list-style: none; }
+
+  .option {
+    width: 100%;
+    min-height: var(--tap);
+    padding: 0.8rem 1rem;
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    font-size: 1.05rem;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .option:hover { border-color: var(--accent); }
+  .option[aria-pressed="true"] { border-color: var(--accent); background: var(--cream); font-weight: 600; }
+  .option small { display: block; color: var(--muted); font-weight: 400; font-size: 0.85rem; }
+
+  .nav { display: flex; flex-wrap: wrap; gap: 0.6rem; justify-content: space-between; margin-top: 1.25rem; }
+
+  .btn {
+    min-height: 48px;
+    padding: 0 1.25rem;
+    border: 2px solid var(--accent);
+    border-radius: var(--radius);
+    background: var(--accent);
+    color: var(--on-accent);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .btn-secondary { background: transparent; color: var(--accent); }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  /* Results – layout inspired by "03 Website Design/Final Page Quiz.png" */
+
+  .profile { display: grid; gap: 0.55rem; margin: 1rem 0 0.75rem; padding: 0; }
+
+  .row { display: grid; grid-template-columns: 6.25rem 1fr 1.5rem; align-items: end; gap: 0.6rem; }
+  .row dt { font-size: 0.85rem; color: var(--muted); padding-bottom: 1px; }
+  .row dd { margin: 0; }
+  .row .val { font-size: 0.85rem; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+
+  .bar { position: relative; padding-top: 9px; }
+  .segments { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+  .seg { height: 10px; border-radius: 2px; background: var(--seg-empty); }
+  .seg.on { background: var(--seg-fill); }
+
+  /* Customer target marker above the product value */
+  .marker {
+    position: absolute;
+    top: 0;
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 8px solid var(--accent);
+    transform: translateX(-50%);
+  }
+
+
+  .tags { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0; padding: 0; list-style: none; }
+  .tags li { padding: 0.15rem 0.6rem; border-radius: 999px; background: var(--cream); font-size: 0.85rem; }
+  .tags li.hit { outline: 2px solid var(--accent); }
+
+  .why { margin: 0.75rem 0 0; font-size: 0.95rem; }
+
+
+
+  .actions { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 1.5rem; }
+  .actions a.btn { display: inline-flex; align-items: center; text-decoration: none; }
+
+  @media (min-width: 48rem) {
+    main { padding-top: 2rem; }
+    .options.cols-2 { grid-template-columns: 1fr 1fr; }
+  }
+  /* Answer options with a product photo (question 1: machine types) */
+  .option.has-image { display: grid; grid-template-columns: 4.5rem 1fr; align-items: center; gap: 1rem; padding: 0.5rem 1rem 0.5rem 0.5rem; }
+  .option-img {
+    width: 4.5rem;
+    height: 4.5rem;
+    object-fit: contain;
+    border-radius: 6px;
+    background: #ffffff;
+  }
+
+  main.is-results { max-width: 68rem; }
+
+  .results-head { padding-bottom: 0.9rem; border-bottom: 1px solid var(--border); }
+  .results-eyebrow { margin: 0 0 0.25rem; font-size: 0.85rem; color: var(--muted); }
+  .results-title { font-weight: 500; }
+
+  .result-grid { display: grid; gap: 1.25rem; margin-top: 1.5rem; }
+  @media (min-width: 48rem) { .result-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+  .result-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--card-bg);
+  }
+
+  .match-badge {
+    position: absolute;
+    top: 0.75rem;
+    left: 0.75rem;
+    z-index: 1;
+    padding: 0.2rem 0.55rem;
+    border-radius: 4px;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-size: 0.8rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .result-media { display: grid; place-items: center; aspect-ratio: 4 / 3; margin: 1.5rem 0 0.5rem; }
+  .result-media img { width: 100%; height: 100%; object-fit: contain; mix-blend-mode: multiply; }
+  @media (max-width: 47.99rem) { .result-media { aspect-ratio: auto; height: 14rem; margin-top: 1.75rem; } }
+  @media (prefers-color-scheme: dark) { .result-media { background: #f1ede8; border-radius: 6px; } }
+
+  .result-card .tags { margin-top: auto; }
+  .result-name { margin: 0.25rem 0 0; font-family: Georgia, "Times New Roman", serif; font-size: 1.2rem; font-weight: 700; color: var(--brown); }
+  .result-format { margin: 0; font-size: 0.9rem; color: var(--muted); }
+
+  .result-foot { display: flex; align-items: flex-end; justify-content: space-between; gap: 0.75rem; margin-top: 0.25rem; }
+  .result-price { margin: 0; }
+  .result-price strong { font-size: 1.1rem; color: var(--brown); }
+  .result-price span { font-size: 0.8rem; color: var(--muted); }
+
+  .cart-link {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 44px;
+    height: 44px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--brown);
+  }
+  .cart-link:hover { border-color: var(--accent); color: var(--accent); }
+
+  .result-details { border-top: 1px solid var(--border); padding-top: 0.5rem; }
+  .result-details summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-size: 0.9rem; font-weight: 600; color: var(--accent); }
+
+  .also { margin: 1rem 0 0; font-size: 0.95rem; }
+  .also a { color: var(--accent); font-weight: 600; }
+
+  /* "Get your discount and save your results" */
+  .save-box {
+    display: grid;
+    margin-top: 2rem;
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: var(--card-bg);
+  }
+  @media (min-width: 48rem) { .save-box { grid-template-columns: minmax(0, 0.9fr) minmax(0, 2fr); } }
+  .save-media img { width: 100%; height: 100%; min-height: 12rem; max-height: 22rem; object-fit: cover; }
+  .save-body { display: grid; gap: 0.75rem; padding: 1.25rem 1.5rem 1.5rem; }
+  .save-body h2 { font-size: 1.35rem; font-weight: 500; color: var(--text); }
+  .save-body > p { margin: 0; font-size: 0.95rem; color: var(--muted); }
+  .save-form { display: grid; gap: 0.75rem; }
+  .save-fields { display: grid; gap: 0.75rem; }
+  @media (min-width: 40rem) { .save-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  .save-field { display: grid; gap: 0.25rem; align-content: start; }
+  .save-field label { font-size: 0.8rem; color: var(--muted); }
+  .save-field input {
+    min-height: 44px;
+    padding: 0 0.75rem;
+    border: 1px solid var(--text);
+    border-radius: 4px;
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+  }
+  .save-field input[aria-invalid="true"] { border-color: #b3261e; box-shadow: inset 0 0 0 1px #b3261e; }
+  .save-error { margin: 0; min-height: 0; font-size: 0.8rem; font-weight: 600; color: #b3261e; }
+  .save-error:empty { display: none; }
+  .save-consent { display: grid; grid-template-columns: auto 1fr; gap: 0.75rem; align-items: start; font-size: 0.8rem; color: var(--muted); cursor: pointer; }
+  .save-consent input { width: 1.25rem; height: 1.25rem; margin: 0.1rem 0 0; accent-color: var(--accent); }
+  .save-privacy { margin: 0; font-size: 0.8rem; color: var(--muted); }
+  .save-privacy a { color: var(--accent); }
+  .save-form .btn { justify-self: start; border-radius: 999px; padding: 0 2rem; }
+  .save-done { display: grid; gap: 0.4rem; }
+  .save-done p { margin: 0; }
+  .save-done-title { font-size: 1.15rem; font-weight: 700; color: var(--brown); }
+  .save-demo { font-size: 0.8rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="shop/"><img src="brand/xpresso-logo-white.png" alt="X-Presso" width="900" height="304" /></a>
+  <a href="shop/">Back to shop</a>
+</header>
+<main id="app" aria-live="polite"></main>
+
+<script>
+'use strict'
+
+// ---------------------------------------------------------------------------
+// PRODUCT CATALOGUE – easy to edit. Language-independent values; texts in TEXT below.
+// Flavour values and aroma tags are placeholders.
+// TODO: durch echte Werte ersetzen (all "values" and "tags" below).
+// Tag IDs: chocolate, nut, caramel, berries, citrus, spice (labels in TEXT.tags).
+// ---------------------------------------------------------------------------
+const PRODUCTS = [
+  { id: 'BB', group: 'beans', price: 7.49, image: 'quiz-images/coffee-bb.jpg',
+    values: { intensity: 4, bitterness: 3, acidity: 4, roast: 3, body: 4, sweetness: 4, fruitiness: 4 }, // TODO: durch echte Werte ersetzen
+    tags: ['caramel', 'nut', 'citrus'] }, // TODO: durch echte Werte ersetzen
+  { id: 'BE', group: 'beans', price: 8.49, image: 'quiz-images/coffee-be.jpg',
+    values: { intensity: 6, bitterness: 5, acidity: 2, roast: 6, body: 6, sweetness: 3, fruitiness: 2 }, // TODO: durch echte Werte ersetzen
+    tags: ['chocolate', 'nut', 'spice'] }, // TODO: durch echte Werte ersetzen
+  { id: 'BS', group: 'beans', price: 15.59, image: 'quiz-images/coffee-bs.jpg',
+    values: { intensity: 5, bitterness: 3, acidity: 5, roast: 4, body: 5, sweetness: 5, fruitiness: 5 }, // TODO: durch echte Werte ersetzen
+    tags: ['berries', 'caramel', 'citrus'] }, // TODO: durch echte Werte ersetzen
+  { id: 'ES', group: 'ground', price: 8.49, image: 'quiz-images/coffee-es.jpg',
+    values: { intensity: 6, bitterness: 5, acidity: 3, roast: 5, body: 6, sweetness: 3, fruitiness: 2 }, // TODO: durch echte Werte ersetzen
+    tags: ['chocolate', 'spice'] }, // TODO: durch echte Werte ersetzen
+  { id: 'XS', group: 'capsule', price: 6.99, image: 'quiz-images/capsules-espresso.png',
+    values: { intensity: 6, bitterness: 4, acidity: 3, roast: 5, body: 5, sweetness: 3, fruitiness: 3 }, // TODO: durch echte Werte ersetzen
+    tags: ['chocolate', 'caramel'] }, // TODO: durch echte Werte ersetzen
+  { id: 'XL', group: 'capsule', price: 6.99, image: 'quiz-images/capsules-lungo.png',
+    values: { intensity: 4, bitterness: 3, acidity: 3, roast: 4, body: 4, sweetness: 4, fruitiness: 3 }, // TODO: durch echte Werte ersetzen
+    tags: ['nut', 'caramel'] }, // TODO: durch echte Werte ersetzen
+]
+
+const DIMENSIONS = ['intensity', 'bitterness', 'acidity', 'roast', 'body', 'sweetness', 'fruitiness']
+
+const SCALE_MIN = 1
+const SCALE_MAX = 7
+const START_VALUE = 4
+const TOP_N = 3
+/** Only show "You might also like" when the other format matches at least this well. */
+const ALSO_INTERESTING_MIN_MATCH = 70
+
+// ---------------------------------------------------------------------------
+// QUESTIONS (logic only). "effects" shift the target profile (start value 4).
+// ---------------------------------------------------------------------------
+const QUESTIONS = [
+  { id: 'method', cols: 2, options: [
+    { id: 'automatic', image: 'quiz-images/machine-fully-automatic.jpg' },
+    { id: 'portafilter', image: 'quiz-images/machine-portafilter.jpg' },
+    { id: 'filter', image: 'quiz-images/machine-filter.jpg' },
+    { id: 'capsule', image: 'quiz-images/machine-capsule.jpg' },
+  ] },
+  { id: 'strength', options: [
+    { id: 'mild', effects: { intensity: -2, body: -1 } },
+    { id: 'medium', effects: {} },
+    { id: 'strong', effects: { intensity: 2, body: 1 } },
+  ] },
+  { id: 'bitterness', options: [
+    { id: 'no', effects: { bitterness: -2, roast: -1 } },
+    { id: 'little', effects: {} },
+    { id: 'yes', effects: { bitterness: 2, roast: 2 } },
+  ] },
+  { id: 'acidity', options: [
+    { id: 'none', effects: { acidity: -2, fruitiness: -1 } },
+    { id: 'subtle', effects: {} },
+    { id: 'lively', effects: { acidity: 2, fruitiness: 2 } },
+  ] },
+  { id: 'aroma', options: [
+    { id: 'chocolate', effects: { sweetness: 1, fruitiness: -1 }, tags: ['chocolate', 'nut'] },
+    { id: 'caramel', effects: { sweetness: 2 }, tags: ['caramel'] },
+    { id: 'berries', effects: { fruitiness: 2, sweetness: -1 }, tags: ['berries', 'citrus'] },
+  ] },
+  { id: 'milk', options: [
+    { id: 'black', effects: {} },
+    { id: 'milk', effects: { intensity: 1, body: 1 } },
+  ] },
+  { id: 'weights', multi: true, max: 2, optional: true, cols: 2, options: DIMENSIONS.map((key) => ({ id: key })) },
+]
+
+// ---------------------------------------------------------------------------
+// TEXTS (English only)
+// ---------------------------------------------------------------------------
+const TEXT = {
+  en: {
+    title: 'Coffee Quiz – X-Presso',
+    backToShop: 'Back to shop',
+    progress: (n, total) => `Question ${n} of ${total}`,
+    progressLabel: 'Progress',
+    back: 'Back', next: 'Next', skip: 'Skip', showResult: 'Show my result',
+    resultEyebrow: 'Quiz complete',
+    resultTitle: 'Your coffee matches',
+    inclVat: 'incl. VAT',
+    tasteProfile: 'Taste profile & why it fits',
+    addToCart: (name) => `Add ${name} to your cart in the shop`,
+    chooseCapsules: (name) => `Choose ${name} flavours in the shop`,
+    save: {
+      title: 'Get your discount and save your results',
+      text: 'Register to receive your results by email and get 20% off your first coffee order.',
+      firstName: 'First name', lastName: 'Last name', email: 'Email address',
+      consent: 'Yes, I would like to receive offers, news and personal coffee recommendations from X-Presso by email. I can withdraw this consent at any time. (optional)',
+      privacy: 'We use your details to send your results.', privacyLink: 'Privacy notice',
+      submit: 'Confirm',
+      errFirstName: 'Please enter your first name.', errLastName: 'Please enter your last name.',
+      errEmail: 'Please enter a valid email address, e.g. name@example.com.',
+      thanks: (name) => `Thank you, ${name}!`,
+      doneText: (email) => `Your results and your 20% welcome discount will be sent to ${email}.`,
+      demo: 'Demo: nothing was stored or sent.',
+    },
+    alsoInteresting: 'You might also like',
+    restart: 'Restart quiz', toShop: 'See my matches in the shop',
+    matchLabel: (n) => `${n} percent match`,
+    aromas: 'Aromas',
+    barLabel: (dim, value, target) => `${dim}: product ${value} of 7, your taste ${target}`,
+    exact: (dim) => `${dim} (spot on)`,
+    near: (dim, diff) => `${dim} (only ${diff} ${diff === 1 ? 'step' : 'steps'} away)`,
+    why: (parts) => `Why it fits: ${parts.join(' and ')} match your taste especially well.`,
+    dims: { intensity: 'Intensity', bitterness: 'Bitterness', acidity: 'Acidity', roast: 'Roast', body: 'Body', sweetness: 'Sweetness', fruitiness: 'Fruitiness' },
+    tags: { chocolate: 'Chocolate', nut: 'Nut', caramel: 'Caramel', berries: 'Berries', citrus: 'Citrus', spice: 'Spice' },
+    products: {
+      BB: { name: 'Brewed Coffee', format: 'Whole beans · 500 g' },
+      BE: { name: 'Espresso', format: 'Whole beans · 500 g' },
+      BS: { name: 'Speciality', format: 'Whole beans · 500 g' },
+      ES: { name: 'Ground Espresso', format: 'Ground · 250 g' },
+      XS: { name: 'X-Presso Espresso', format: 'Capsule' },
+      XL: { name: 'X-Presso Lungo', format: 'Capsule' },
+    },
+    questions: {
+      method: { title: 'How do you make your coffee?', hint: 'So we only show coffee that suits your machine.',
+        options: { automatic: 'Fully automatic machine', portafilter: 'Portafilter', filter: 'Filter', capsule: 'X-Presso capsule machine' } },
+      strength: { title: 'How strong do you like it?', options: { mild: 'Mild', medium: 'Medium', strong: 'Strong' } },
+      bitterness: { title: 'How do you feel about bitterness?', options: { no: "I don't like it", little: 'A little is fine', yes: 'I like it' } },
+      acidity: { title: 'And acidity?', options: { none: "I'd rather not", subtle: 'Subtle', lively: 'Bright and lively' } },
+      aroma: { title: 'Which flavours suit you?', options: { chocolate: 'Chocolate and nuts', caramel: 'Caramel and sweetness', berries: 'Berries and citrus' } },
+      milk: { title: 'Do you drink it black or with milk?', options: { black: 'Black', milk: 'With milk' },
+        optionHints: { milk: 'Then it can be a little stronger.' } },
+      weights: { title: 'What matters most to you?', hint: 'Optional: pick up to two characteristics. They count double in your result.' },
+    },
+  },
+}
+
+
+// ---------------------------------------------------------------------------
+// LOGIC
+// ---------------------------------------------------------------------------
+const clamp = (value) => Math.min(SCALE_MAX, Math.max(SCALE_MIN, value))
+
+/** Target profile from the answers; each dimension starts at 4 and is clamped to 1–7. */
+function buildTarget(answers) {
+  const target = Object.fromEntries(DIMENSIONS.map((key) => [key, START_VALUE]))
+  for (const question of QUESTIONS) {
+    const option = question.options.find((o) => o.id === answers[question.id])
+    for (const [key, delta] of Object.entries(option?.effects ?? {})) target[key] += delta
+  }
+  for (const key of DIMENSIONS) target[key] = clamp(target[key])
+  return target
+}
+
+function buildWeights(important) {
+  return Object.fromEntries(DIMENSIONS.map((key) => [key, important.includes(key) ? 2 : 1]))
+}
+
+/** Match % = 100 − (Σ wᵢ·|targetᵢ − productᵢ|) / (6 · Σ wᵢ) × 100, rounded. */
+function matchScore(target, values, weights) {
+  let deviation = 0
+  let weightSum = 0
+  for (const key of DIMENSIONS) {
+    const w = weights?.[key] ?? 1
+    deviation += w * Math.abs(target[key] - values[key])
+    weightSum += w
+  }
+  return Math.round(100 - (deviation / ((SCALE_MAX - SCALE_MIN) * weightSum)) * 100)
+}
+
+function candidateGroups(method) {
+  if (method === 'capsule') return { main: ['capsule'], other: ['beans', 'ground'] }
+  // Ground coffee does not fit the bean hopper of a fully automatic machine.
+  if (method === 'automatic') return { main: ['beans'], other: ['capsule'] }
+  return { main: ['beans', 'ground'], other: ['capsule'] }
+}
+
+function rank(products, target, weights) {
+  return products
+    .map((product) => ({ product, score: matchScore(target, product.values, weights) }))
+    .sort((a, b) => b.score - a.score || a.product.id.localeCompare(b.product.id))
+}
+
+function evaluate(answers) {
+  const target = buildTarget(answers)
+  const weights = buildWeights(answers.weights ?? [])
+  const groups = candidateGroups(answers.method)
+  const top = rank(PRODUCTS.filter((p) => groups.main.includes(p.group)), target, weights).slice(0, TOP_N)
+  const otherBest = rank(PRODUCTS.filter((p) => groups.other.includes(p.group)), target, weights)[0]
+  const alsoInteresting = otherBest && otherBest.score >= ALSO_INTERESTING_MIN_MATCH ? otherBest : null
+  return { target, weights, top, alsoInteresting }
+}
+
+/** "Why it fits" from the two smallest deviations. */
+function explain(target, values, t) {
+  const parts = DIMENSIONS
+    .map((key) => ({ key, diff: Math.abs(target[key] - values[key]) }))
+    .sort((a, b) => a.diff - b.diff)
+    .slice(0, 2)
+    .map(({ key, diff }) => (diff === 0 ? t.exact(t.dims[key]) : t.near(t.dims[key], diff)))
+  return t.why(parts)
+}
+
+// ---------------------------------------------------------------------------
+// SELF-TEST of the score function (runs on load, output in the console)
+// ---------------------------------------------------------------------------
+function runSelfTests() {
+  const flat = (n) => Object.fromEntries(DIMENSIONS.map((key) => [key, n]))
+  const byId = (id) => PRODUCTS.find((p) => p.id === id).values
+  const cases = [
+    { name: 'Profile identical to BE', target: { ...byId('BE') }, values: byId('BE'), expected: 100 },
+    { name: 'Maximum distance (all 1 vs. all 7)', target: flat(1), values: flat(7), expected: 0 },
+    { name: 'All 4 vs. BB (deviation 2 of 42 → 95 %)', target: flat(4), values: byId('BB'), expected: 95 },
+    { name: 'Weighted: intensity ×2, all 4 vs. BE', target: flat(4), values: byId('BE'),
+      weights: { ...flat(1), intensity: 2 }, expected: 71 }, // Σ w·|Δ| = 2·2+1+2+2+2+1+2 = 14; 100 − 14/48·100 = 70.8
+  ]
+  const results = cases.map((c) => {
+    const actual = matchScore(c.target, c.values, c.weights)
+    return { name: c.name, expected: c.expected, actual, pass: actual === c.expected }
+  })
+  console.info('[Coffee quiz] Score self-test:')
+  console.table(results)
+  results.forEach((r) => console.assert(r.pass, `[Coffee quiz] Test failed: ${r.name}`))
+  return results.every((r) => r.pass)
+}
+
+// ---------------------------------------------------------------------------
+// UI
+// ---------------------------------------------------------------------------
+const app = document.getElementById('app')
+const state = { step: 0, answers: {} }
+
+// Deep link from the shop, e.g. ?method=capsule from the cart: answer question 1 and continue with question 2.
+const initialMethod = new URLSearchParams(location.search).get('method')
+if (QUESTIONS[0].options.some((option) => option.id === initialMethod)) {
+  state.answers.method = initialMethod
+  state.step = 1
+}
+const t = () => TEXT.en
+
+const el = (tag, attrs = {}, ...children) => {
+  const node = document.createElement(tag)
+  for (const [key, value] of Object.entries(attrs)) {
+    if (value === undefined || value === false) continue
+    if (key === 'class') node.className = value
+    else if (key.startsWith('on')) node.addEventListener(key.slice(2), value)
+    else node.setAttribute(key, value === true ? '' : value)
+  }
+  node.append(...children.flat(Infinity).filter((c) => c !== null && c !== undefined && c !== false))
+  return node
+}
+
+function optionLabel(question, optionId) {
+  const q = t().questions[question.id]
+  return question.id === 'weights' ? t().dims[optionId] : q.options[optionId]
+}
+
+function renderQuestion() {
+  const question = QUESTIONS[state.step]
+  const texts = t().questions[question.id]
+  const total = QUESTIONS.length
+  const selected = state.answers[question.id]
+  const isSelected = (id) => (question.multi ? (selected ?? []).includes(id) : selected === id)
+
+  const choose = (id) => {
+    if (question.multi) {
+      const list = [...(selected ?? [])]
+      const index = list.indexOf(id)
+      if (index >= 0) list.splice(index, 1)
+      else if (list.length < question.max) list.push(id)
+      state.answers[question.id] = list
+      render()
+    } else {
+      state.answers[question.id] = id
+      next()
+    }
+  }
+
+  const heading = el('h1', { tabindex: '-1' }, texts.title)
+  app.replaceChildren(
+    el('div', { class: 'progress' },
+      el('span', { class: 'progress-label' }, t().progress(state.step + 1, total)),
+      el('div', { class: 'progress-track', role: 'progressbar', 'aria-valuemin': '1', 'aria-valuemax': String(total), 'aria-valuenow': String(state.step + 1), 'aria-label': t().progressLabel },
+        el('div', { class: 'progress-bar', style: `width:${((state.step + 1) / total) * 100}%` }))),
+    heading,
+    texts.hint ? el('p', { class: 'hint' }, texts.hint) : null,
+    el('ul', { class: `options${question.cols === 2 ? ' cols-2' : ''}`, role: 'list' },
+      question.options.map((option) => {
+        const disabled = question.multi && !isSelected(option.id) && (selected ?? []).length >= question.max
+        const hint = texts.optionHints?.[option.id]
+        return el('li', {},
+          el('button', { type: 'button', class: `option${option.image ? ' has-image' : ''}`, 'aria-pressed': String(isSelected(option.id)), disabled, onclick: () => choose(option.id) },
+            // Decorative: the label next to it names the machine type.
+            option.image ? el('img', { class: 'option-img', src: option.image, alt: '', loading: 'lazy' }) : null,
+            el('span', {}, optionLabel(question, option.id), hint ? el('small', {}, hint) : null)))
+      })),
+    el('div', { class: 'nav' },
+      el('button', { type: 'button', class: 'btn btn-secondary', disabled: state.step === 0, onclick: back }, t().back),
+      question.multi
+        ? el('button', { type: 'button', class: 'btn', onclick: next }, (selected ?? []).length ? t().showResult : t().skip)
+        : selected ? el('button', { type: 'button', class: 'btn', onclick: next }, t().next) : null),
+  )
+  return heading
+}
+
+function bars(target, values) {
+  return el('dl', { class: 'profile' },
+    DIMENSIONS.map((key) => {
+      const label = t().dims[key]
+      const value = values[key]
+      const markerLeft = ((target[key] - 0.5) / SCALE_MAX) * 100
+      return el('div', { class: 'row' },
+        el('dt', {}, label),
+        el('dd', {},
+          el('div', { class: 'bar', role: 'img', 'aria-label': t().barLabel(label, value, target[key]) },
+            el('span', { class: 'marker', style: `left:${markerLeft}%` }),
+            el('div', { class: 'segments' },
+              Array.from({ length: SCALE_MAX }, (_, i) => el('span', { class: `seg${i < value ? ' on' : ''}` }))))),
+        el('dd', { class: 'val', 'aria-hidden': 'true' }, String(value)))
+    }))
+}
+
+/** Hands the result to the shop through the link (?match=BE-91,ES-87); nothing is stored. */
+function shopLink(entries, extra = '') {
+  const match = entries.map((entry) => `${entry.product.id}-${entry.score}`).join(',')
+  return `shop/?match=${encodeURIComponent(match)}${extra}`
+}
+
+const formatPrice = (amount) => new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR' }).format(amount)
+
+const CART_ICON =
+  '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M5 8h14l-1.2 11.1a1 1 0 0 1-1 .9H7.2a1 1 0 0 1-1-.9L5 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>'
+
+/** Result card in the style of the "Final Page Quiz" design: large image, match badge, name, price, cart link. */
+function productCard(entry, target, likedTags, matches) {
+  const { product, score } = entry
+  const copy = t().products[product.id]
+  // Coffee goes straight into the shop cart; capsule families open the capsule section to pick a flavour.
+  const cartHref = product.group === 'capsule' ? shopLink(matches, '&show=capsules') : shopLink(matches, `&add=${product.id}`)
+  const cartLink = el('a', { class: 'cart-link', href: cartHref, 'aria-label': product.group === 'capsule' ? t().chooseCapsules(copy.name) : t().addToCart(copy.name) })
+  cartLink.innerHTML = CART_ICON
+
+  return el('article', { class: 'result-card' },
+    el('span', { class: 'match-badge', 'aria-label': t().matchLabel(score) }, `${score}% match`),
+    el('div', { class: 'result-media' }, el('img', { src: product.image, alt: copy.name, loading: 'lazy' })),
+    el('ul', { class: 'tags', 'aria-label': t().aromas },
+      product.tags.map((tag) => el('li', { class: likedTags.includes(tag) ? 'hit' : '' }, t().tags[tag]))),
+    el('h3', { class: 'result-name' }, copy.name),
+    el('p', { class: 'result-format' }, copy.format),
+    el('div', { class: 'result-foot' },
+      el('p', { class: 'result-price' }, el('strong', {}, formatPrice(product.price)), ' ', el('span', {}, t().inclVat)),
+      cartLink),
+    el('details', { class: 'result-details' },
+      el('summary', {}, t().tasteProfile),
+      bars(target, product.values),
+      el('p', { class: 'why' }, explain(target, product.values, t()))))
+}
+
+/** "Get your discount and save your results" – demo form, nothing is stored or sent. */
+function saveResultsBox() {
+  const form = { firstName: '', lastName: '', email: '', marketing: false }
+  const box = el('section', { class: 'save-box', 'aria-labelledby': 'save-title' })
+
+  const field = (id, label, type, autocomplete) => {
+    const input = el('input', { id: `save-${id}`, type, autocomplete, required: true, 'aria-describedby': `save-${id}-error` })
+    input.addEventListener('input', () => { form[id] = input.value })
+    return el('div', { class: 'save-field' },
+      el('label', { for: `save-${id}` }, `${label}*`),
+      input,
+      el('p', { class: 'save-error', id: `save-${id}-error` }))
+  }
+
+  const consent = el('input', { id: 'save-marketing', type: 'checkbox' })
+  consent.addEventListener('change', () => { form.marketing = consent.checked })
+
+  const showErrors = () => {
+    const errors = {
+      firstName: form.firstName.trim() ? '' : t().save.errFirstName,
+      lastName: form.lastName.trim() ? '' : t().save.errLastName,
+      email: /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email.trim()) ? '' : t().save.errEmail,
+    }
+    for (const [id, message] of Object.entries(errors)) {
+      box.querySelector(`#save-${id}-error`).textContent = message
+      box.querySelector(`#save-${id}`).setAttribute('aria-invalid', message ? 'true' : 'false')
+    }
+    return Object.keys(errors).find((id) => errors[id])
+  }
+
+  const formEl = el('form', { class: 'save-form', novalidate: true },
+    el('div', { class: 'save-fields' },
+      field('firstName', t().save.firstName, 'text', 'given-name'),
+      field('lastName', t().save.lastName, 'text', 'family-name'),
+      field('email', t().save.email, 'email', 'email')),
+    el('label', { class: 'save-consent' }, consent, el('span', {}, t().save.consent)),
+    el('p', { class: 'save-privacy' }, t().save.privacy, ' ', el('a', { href: 'https://www.xpresso-coffee.de/j/privacy', target: '_blank', rel: 'noreferrer' }, t().save.privacyLink), '.'),
+    el('button', { type: 'submit', class: 'btn' }, t().save.submit))
+
+  formEl.addEventListener('submit', (event) => {
+    event.preventDefault()
+    const firstInvalid = showErrors()
+    if (firstInvalid) {
+      box.querySelector(`#save-${firstInvalid}`).focus()
+      return
+    }
+    const done = el('div', { class: 'save-done', role: 'status' },
+      el('p', { class: 'save-done-title' }, t().save.thanks(form.firstName.trim())),
+      el('p', {}, t().save.doneText(form.email.trim())),
+      el('p', { class: 'save-demo' }, t().save.demo))
+    formEl.replaceWith(done)
+  })
+
+  box.append(
+    el('div', { class: 'save-media' }, el('img', { src: 'quiz-images/results-coffee.jpg', alt: '', loading: 'lazy' })),
+    el('div', { class: 'save-body' },
+      el('h2', { id: 'save-title' }, t().save.title),
+      el('p', {}, t().save.text),
+      formEl))
+  return box
+}
+
+function renderResults() {
+  const { target, top, alsoInteresting } = evaluate(state.answers)
+  const aroma = QUESTIONS.find((q) => q.id === 'aroma').options.find((o) => o.id === state.answers.aroma)
+  const likedTags = aroma?.tags ?? []
+  const matches = [...top, alsoInteresting].filter(Boolean)
+  const heading = el('h1', { tabindex: '-1', class: 'results-title' }, t().resultTitle)
+
+  app.replaceChildren(
+    el('header', { class: 'results-head' },
+      el('p', { class: 'results-eyebrow' }, t().resultEyebrow),
+      heading),
+    el('div', { class: 'result-grid' }, top.map((entry) => productCard(entry, target, likedTags, matches))),
+    alsoInteresting
+      ? el('p', { class: 'also' },
+          `${t().alsoInteresting}: `,
+          el('a', { href: shopLink(matches, alsoInteresting.product.group === 'capsule' ? '&show=capsules' : `&add=${alsoInteresting.product.id}`) },
+            `${t().products[alsoInteresting.product.id].name} (${alsoInteresting.score}% match)`))
+      : '',
+    saveResultsBox(),
+    el('div', { class: 'actions' },
+      el('button', { type: 'button', class: 'btn btn-secondary', onclick: restart }, t().restart),
+      el('a', { class: 'btn', href: shopLink(matches) }, t().toShop)),
+  )
+  return heading
+}
+
+function render({ focus = true } = {}) {
+  app.classList.toggle('is-results', state.step >= QUESTIONS.length)
+  const heading = state.step < QUESTIONS.length ? renderQuestion() : renderResults()
+  if (focus) heading.focus({ preventScroll: true })
+  if (state.step >= QUESTIONS.length) window.scrollTo(0, 0)
+}
+
+function next() {
+  state.step += 1
+  render()
+}
+
+function back() {
+  if (state.step > 0) state.step -= 1
+  render()
+}
+
+function restart() {
+  state.step = 0
+  state.answers = {}
+  render()
+}
+
+// For external tests (no persistence, no tracking).
+window.XPressoQuiz = { PRODUCTS, DIMENSIONS, QUESTIONS, TEXT, buildTarget, matchScore, evaluate, runSelfTests, state }
+
+runSelfTests()
+render()
+</script>
+</body>
+</html>
