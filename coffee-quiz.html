@@ -290,6 +290,23 @@
   .save-done p { margin: 0; }
   .save-done-title { font-size: 1.15rem; font-weight: 700; color: var(--brown); }
   .save-demo { font-size: 0.8rem; color: var(--muted); }
+
+  /* Taste quiz offer: three free samples, X-Presso capsule machine owners only */
+  .samples-box {
+    display: grid;
+    gap: 0.6rem;
+    justify-items: start;
+    margin-top: 2rem;
+    padding: 1.25rem 1.5rem;
+    border: 1px dashed var(--accent);
+    border-radius: var(--radius);
+    background: var(--card-bg);
+  }
+  .samples-box h2 { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 0; font-size: 1.35rem; font-weight: 500; color: var(--text); }
+  .samples-only { padding: 0.1rem 0.6rem; border-radius: 999px; background: var(--brown); color: var(--surface); font-size: 0.75rem; font-weight: 700; }
+  .samples-box p { margin: 0; font-size: 0.95rem; }
+  .samples-box .samples-note { font-size: 0.8rem; color: var(--muted); }
+  .samples-box .btn { border-radius: 999px; padding: 0 2rem; }
 </style>
 </head>
 <body>
@@ -403,6 +420,13 @@ const TEXT = {
       thanks: (name) => `Thank you, ${name}!`,
       doneText: (email) => `Your results and your 20% welcome discount will be sent to ${email}.`,
       demo: 'Demo: nothing was stored or sent.',
+    },
+    samples: {
+      title: 'Three free samples',
+      only: 'X-Presso machine only',
+      text: 'You own an X-Presso capsule machine? Choose three capsule flavours in the shop and get them free with your next order.',
+      cta: 'Choose my 3 free samples',
+      note: 'For owners of the X-Presso capsule machine · one set per customer.',
     },
     alsoInteresting: 'You might also like',
     restart: 'Restart quiz', toShop: 'See my matches in the shop',
@@ -722,6 +746,15 @@ function saveResultsBox() {
   return box
 }
 
+/** Taste quiz offer for X-Presso capsule machine owners; the link invites the shop to show the sample picker. */
+function samplesBox(matches) {
+  return el('section', { class: 'samples-box', 'aria-labelledby': 'samples-title' },
+    el('h2', { id: 'samples-title' }, t().samples.title, el('span', { class: 'samples-only' }, t().samples.only)),
+    el('p', {}, t().samples.text),
+    el('a', { class: 'btn', href: shopLink(matches, '&show=capsules&samples=xp') }, t().samples.cta),
+    el('p', { class: 'samples-note' }, t().samples.note))
+}
+
 function renderResults() {
   const { target, top, alsoInteresting } = evaluate(state.answers)
   const aroma = QUESTIONS.find((q) => q.id === 'aroma').options.find((o) => o.id === state.answers.aroma)
@@ -740,6 +773,7 @@ function renderResults() {
           el('a', { href: shopLink(matches, alsoInteresting.product.group === 'capsule' ? '&show=capsules' : `&add=${alsoInteresting.product.id}`) },
             `${t().products[alsoInteresting.product.id].name} (${alsoInteresting.score}% match)`))
       : '',
+    state.answers.method === 'capsule' ? samplesBox(matches) : null,
     saveResultsBox(),
     el('div', { class: 'actions' },
       el('button', { type: 'button', class: 'btn btn-secondary', onclick: restart }, t().restart),
