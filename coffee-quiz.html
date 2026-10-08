@@ -251,7 +251,7 @@
   .also { margin: 1rem 0 0; font-size: 0.95rem; }
   .also a { color: var(--accent); font-weight: 600; }
 
-  /* "Get your discount and save your results" */
+  /* "Save your results" */
   .save-box {
     display: grid;
     margin-top: 2rem;
@@ -409,8 +409,8 @@ const TEXT = {
     addToCart: (name) => `Add ${name} to your cart in the shop`,
     chooseCapsules: (name) => `Choose ${name} flavours in the shop`,
     save: {
-      title: 'Get your discount and save your results',
-      text: 'Register to receive your results by email and get 20% off your first coffee order.',
+      title: 'Save your results',
+      text: 'Register to receive your results by email.',
       firstName: 'First name', lastName: 'Last name', email: 'Email address',
       consent: 'Yes, I would like to receive offers, news and personal coffee recommendations from X-Presso by email. I can withdraw this consent at any time. (optional)',
       privacy: 'We use your details to send your results.', privacyLink: 'Privacy notice',
@@ -418,7 +418,7 @@ const TEXT = {
       errFirstName: 'Please enter your first name.', errLastName: 'Please enter your last name.',
       errEmail: 'Please enter a valid email address, e.g. name@example.com.',
       thanks: (name) => `Thank you, ${name}!`,
-      doneText: (email) => `Your results and your 20% welcome discount will be sent to ${email}.`,
+      doneText: (email) => `Your results will be sent to ${email}.`,
       demo: 'Demo: nothing was stored or sent.',
     },
     samples: {
@@ -684,7 +684,7 @@ function productCard(entry, target, likedTags, matches) {
       el('p', { class: 'why' }, explain(target, product.values, t()))))
 }
 
-/** "Get your discount and save your results" – demo form, nothing is stored or sent. */
+/** "Save your results" – demo form, nothing is stored or sent. */
 function saveResultsBox() {
   const form = { firstName: '', lastName: '', email: '', marketing: false }
   const box = el('section', { class: 'save-box', 'aria-labelledby': 'save-title' })
