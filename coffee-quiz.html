@@ -264,32 +264,15 @@
   .save-body { display: grid; gap: 0.75rem; padding: 1.25rem 1.5rem 1.5rem; }
   .save-body h2 { font-size: 1.35rem; font-weight: 500; color: var(--text); }
   .save-body > p { margin: 0; font-size: 0.95rem; color: var(--muted); }
-  .save-form { display: grid; gap: 0.75rem; }
-  .save-fields { display: grid; gap: 0.75rem; }
-  @media (min-width: 40rem) { .save-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-  .save-field { display: grid; gap: 0.25rem; align-content: start; }
-  .save-field label { font-size: 0.8rem; color: var(--muted); }
-  .save-field input {
-    min-height: 44px;
-    padding: 0 0.75rem;
-    border: 1px solid var(--text);
-    border-radius: 4px;
-    background: var(--surface);
-    color: var(--text);
-    font: inherit;
-  }
-  .save-field input[aria-invalid="true"] { border-color: #b3261e; box-shadow: inset 0 0 0 1px #b3261e; }
-  .save-error { margin: 0; min-height: 0; font-size: 0.8rem; font-weight: 600; color: #b3261e; }
-  .save-error:empty { display: none; }
-  .save-consent { display: grid; grid-template-columns: auto 1fr; gap: 0.75rem; align-items: start; font-size: 0.8rem; color: var(--muted); cursor: pointer; }
-  .save-consent input { width: 1.25rem; height: 1.25rem; margin: 0.1rem 0 0; accent-color: var(--accent); }
-  .save-privacy { margin: 0; font-size: 0.8rem; color: var(--muted); }
-  .save-privacy a { color: var(--accent); }
-  .save-form .btn { justify-self: start; border-radius: 999px; padding: 0 2rem; }
-  .save-done { display: grid; gap: 0.4rem; }
-  .save-done p { margin: 0; }
-  .save-done-title { font-size: 1.15rem; font-weight: 700; color: var(--brown); }
-  .save-demo { font-size: 0.8rem; color: var(--muted); }
+  .save-demo { margin: 0; font-size: 0.8rem; color: var(--muted); }
+  /* Sign-in gate before the results (guests). */
+  .gate-lead { margin: 0.5rem 0 0; color: var(--muted); }
+  .gate-card { pointer-events: none; }
+  .gate-card .result-media img { filter: blur(10px) saturate(0.8); transform: scale(1.1); }
+  .gate-locked { margin: 0.75rem 0 0; font-size: 0.85rem; font-weight: 700; color: var(--muted); }
+  .gate-perks { display: grid; gap: 0.35rem; margin: 0; padding-left: 1.2rem; font-size: 0.95rem; }
+  .gate-cta { justify-self: start; border-radius: 999px; padding: 0 2rem; }
+  .saved-note { margin: 1rem 0 0; font-size: 0.9rem; color: var(--muted); }
 
   /* Taste quiz offer: three free samples, X-Presso capsule machine owners only */
   .samples-box {
@@ -408,19 +391,19 @@ const TEXT = {
     tasteProfile: 'Taste profile & why it fits',
     addToCart: (name) => `Add ${name} to your cart in the shop`,
     chooseCapsules: (name) => `Choose ${name} flavours in the shop`,
-    save: {
-      title: 'Save your results',
-      text: 'Register to receive your results by email.',
-      firstName: 'First name', lastName: 'Last name', email: 'Email address',
-      consent: 'Yes, I would like to receive offers, news and personal coffee recommendations from X-Presso by email. I can withdraw this consent at any time. (optional)',
-      privacy: 'We use your details to send your results.', privacyLink: 'Privacy notice',
-      submit: 'Confirm',
-      errFirstName: 'Please enter your first name.', errLastName: 'Please enter your last name.',
-      errEmail: 'Please enter a valid email address, e.g. name@example.com.',
-      thanks: (name) => `Thank you, ${name}!`,
-      doneText: (email) => `Your results will be sent to ${email}.`,
-      demo: 'Demo: nothing was stored or sent.',
+    gate: {
+      eyebrow: 'Quiz complete',
+      title: 'Your coffee matches are ready',
+      lead: 'We found the coffees that fit your taste. Sign in to your X-Presso Club account to see them.',
+      boxTitle: 'Sign in to see your results',
+      boxText: 'Your quiz profile belongs to your Club account: we save your matches there, so the shop can recommend the right coffee every time you visit.',
+      perks: ['See your personal coffee matches', 'Your coffee profile saved in My account', '200 welcome points on your first order'],
+      cta: 'Join the Club & see my results',
+      note: 'Free of charge. Your answers are kept until you come back.',
+      change: 'Change my answers',
+      locked: 'Hidden until you sign in',
     },
+    saved: 'Saved to your Club account – you find your coffee profile in My account.',
     samples: {
       title: 'Three free samples',
       only: 'X-Presso machine only',
@@ -555,11 +538,68 @@ function runSelfTests() {
 const app = document.getElementById('app')
 const state = { step: 0, answers: {} }
 
+// Quiz results belong to a customer profile (2026-10-08): only signed-in Club members see them, and they are
+// saved on the member in the shop's account storage. Guests are asked to join first; their answers wait in
+// sessionStorage and the results show as soon as they come back as members.
+const ACCOUNT_KEY = 'xpresso-account-v1'
+const PENDING_KEY = 'xpresso-quiz-pending'
+
+function readAccount() {
+  try {
+    return JSON.parse(localStorage.getItem(ACCOUNT_KEY) || 'null')
+  } catch {
+    return null
+  }
+}
+const isMember = () => Boolean(readAccount()?.member)
+
+/** Saves the quiz profile (answers + matches) on the Club member. */
+function saveProfile(matches) {
+  const account = readAccount()
+  if (!account?.member) return
+  account.member.quizProfile = {
+    takenOn: new Date().toISOString().slice(0, 10),
+    answers: state.answers,
+    match: matches.map((entry) => `${entry.product.id}-${entry.score}`).join(','),
+  }
+  try {
+    localStorage.setItem(ACCOUNT_KEY, JSON.stringify(account))
+  } catch {
+    // Storage unavailable: the results are still shown.
+  }
+}
+
+function keepPendingAnswers() {
+  try {
+    sessionStorage.setItem(PENDING_KEY, JSON.stringify(state.answers))
+  } catch {
+    // Without storage the shopper answers again after joining.
+  }
+}
+
+function takePendingAnswers() {
+  try {
+    const raw = sessionStorage.getItem(PENDING_KEY)
+    if (!raw) return null
+    sessionStorage.removeItem(PENDING_KEY)
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
+
 // Deep link from the shop, e.g. ?method=capsule from the cart: answer question 1 and continue with question 2.
 const initialMethod = new URLSearchParams(location.search).get('method')
 if (QUESTIONS[0].options.some((option) => option.id === initialMethod)) {
   state.answers.method = initialMethod
   state.step = 1
+}
+
+// Back from joining the Club: show the results of the answers given before.
+const pendingAnswers = isMember() ? takePendingAnswers() : null
+if (pendingAnswers && typeof pendingAnswers === 'object') {
+  state.answers = pendingAnswers
+  state.step = QUESTIONS.length
 }
 const t = () => TEXT.en
 
@@ -648,7 +688,7 @@ function bars(target, values) {
     }))
 }
 
-/** Hands the result to the shop through the link (?match=BE-91,ES-87); nothing is stored. */
+/** Hands the result to the shop through the link (?match=BE-91,ES-87). */
 function shopLink(entries, extra = '') {
   const match = entries.map((entry) => `${entry.product.id}-${entry.score}`).join(',')
   return `shop/?match=${encodeURIComponent(match)}${extra}`
@@ -684,66 +724,37 @@ function productCard(entry, target, likedTags, matches) {
       el('p', { class: 'why' }, explain(target, product.values, t()))))
 }
 
-/** "Save your results" – demo form, nothing is stored or sent. */
-function saveResultsBox() {
-  const form = { firstName: '', lastName: '', email: '', marketing: false }
-  const box = el('section', { class: 'save-box', 'aria-labelledby': 'save-title' })
-
-  const field = (id, label, type, autocomplete) => {
-    const input = el('input', { id: `save-${id}`, type, autocomplete, required: true, 'aria-describedby': `save-${id}-error` })
-    input.addEventListener('input', () => { form[id] = input.value })
-    return el('div', { class: 'save-field' },
-      el('label', { for: `save-${id}` }, `${label}*`),
-      input,
-      el('p', { class: 'save-error', id: `save-${id}-error` }))
+/** Guests: the results stay hidden until they join the Club (quiz profile = customer profile). */
+function renderGate() {
+  const heading = el('h1', { tabindex: '-1', class: 'results-title' }, t().gate.title)
+  const join = () => {
+    keepPendingAnswers()
+    location.href = 'shop/?join=quiz'
   }
-
-  const consent = el('input', { id: 'save-marketing', type: 'checkbox' })
-  consent.addEventListener('change', () => { form.marketing = consent.checked })
-
-  const showErrors = () => {
-    const errors = {
-      firstName: form.firstName.trim() ? '' : t().save.errFirstName,
-      lastName: form.lastName.trim() ? '' : t().save.errLastName,
-      email: /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email.trim()) ? '' : t().save.errEmail,
-    }
-    for (const [id, message] of Object.entries(errors)) {
-      box.querySelector(`#save-${id}-error`).textContent = message
-      box.querySelector(`#save-${id}`).setAttribute('aria-invalid', message ? 'true' : 'false')
-    }
-    return Object.keys(errors).find((id) => errors[id])
-  }
-
-  const formEl = el('form', { class: 'save-form', novalidate: true },
-    el('div', { class: 'save-fields' },
-      field('firstName', t().save.firstName, 'text', 'given-name'),
-      field('lastName', t().save.lastName, 'text', 'family-name'),
-      field('email', t().save.email, 'email', 'email')),
-    el('label', { class: 'save-consent' }, consent, el('span', {}, t().save.consent)),
-    el('p', { class: 'save-privacy' }, t().save.privacy, ' ', el('a', { href: 'https://www.xpresso-coffee.de/j/privacy', target: '_blank', rel: 'noreferrer' }, t().save.privacyLink), '.'),
-    el('button', { type: 'submit', class: 'btn' }, t().save.submit))
-
-  formEl.addEventListener('submit', (event) => {
-    event.preventDefault()
-    const firstInvalid = showErrors()
-    if (firstInvalid) {
-      box.querySelector(`#save-${firstInvalid}`).focus()
-      return
-    }
-    const done = el('div', { class: 'save-done', role: 'status' },
-      el('p', { class: 'save-done-title' }, t().save.thanks(form.firstName.trim())),
-      el('p', {}, t().save.doneText(form.email.trim())),
-      el('p', { class: 'save-demo' }, t().save.demo))
-    formEl.replaceWith(done)
-  })
-
-  box.append(
-    el('div', { class: 'save-media' }, el('img', { src: 'quiz-images/results-coffee.jpg', alt: '', loading: 'lazy' })),
-    el('div', { class: 'save-body' },
-      el('h2', { id: 'save-title' }, t().save.title),
-      el('p', {}, t().save.text),
-      formEl))
-  return box
+  show(
+    el('header', { class: 'results-head' },
+      el('p', { class: 'results-eyebrow' }, t().gate.eyebrow),
+      heading,
+      el('p', { class: 'gate-lead' }, t().gate.lead)),
+    // Teaser only: no product or score is in the page before the sign-in.
+    el('div', { class: 'result-grid gate-grid', 'aria-hidden': 'true' },
+      [0, 1, 2].map(() =>
+        el('div', { class: 'result-card gate-card' },
+          el('span', { class: 'match-badge' }, '??% match'),
+          el('div', { class: 'result-media' }, el('img', { src: 'quiz-images/results-coffee.jpg', alt: '' })),
+          el('p', { class: 'gate-locked' }, t().gate.locked)))),
+    el('section', { class: 'save-box', 'aria-labelledby': 'gate-title' },
+      el('div', { class: 'save-media' }, el('img', { src: 'quiz-images/results-coffee.jpg', alt: '', loading: 'lazy' })),
+      el('div', { class: 'save-body' },
+        el('h2', { id: 'gate-title' }, t().gate.boxTitle),
+        el('p', {}, t().gate.boxText),
+        el('ul', { class: 'gate-perks' }, t().gate.perks.map((perk) => el('li', {}, perk))),
+        el('button', { type: 'button', class: 'btn gate-cta', onclick: join }, t().gate.cta),
+        el('p', { class: 'save-demo' }, t().gate.note))),
+    el('div', { class: 'actions' },
+      el('button', { type: 'button', class: 'btn btn-secondary', onclick: back }, t().gate.change)),
+  )
+  return heading
 }
 
 /** Taste quiz offer for X-Presso capsule machine owners; the link invites the shop to show the sample picker. */
@@ -756,10 +767,12 @@ function samplesBox(matches) {
 }
 
 function renderResults() {
+  if (!isMember()) return renderGate()
   const { target, top, alsoInteresting } = evaluate(state.answers)
   const aroma = QUESTIONS.find((q) => q.id === 'aroma').options.find((o) => o.id === state.answers.aroma)
   const likedTags = aroma?.tags ?? []
   const matches = [...top, alsoInteresting].filter(Boolean)
+  saveProfile(matches)
   const heading = el('h1', { tabindex: '-1', class: 'results-title' }, t().resultTitle)
 
   show(
@@ -774,7 +787,7 @@ function renderResults() {
             `${t().products[alsoInteresting.product.id].name} (${alsoInteresting.score}% match)`))
       : '',
     state.answers.method === 'capsule' ? samplesBox(matches) : null,
-    saveResultsBox(),
+    el('p', { class: 'saved-note', role: 'status' }, t().saved),
     el('div', { class: 'actions' },
       el('button', { type: 'button', class: 'btn btn-secondary', onclick: restart }, t().restart),
       el('a', { class: 'btn', href: shopLink(matches) }, t().toShop)),
@@ -805,7 +818,7 @@ function restart() {
   render()
 }
 
-// For external tests (no persistence, no tracking).
+// For external tests (no tracking).
 window.XPressoQuiz = { PRODUCTS, DIMENSIONS, QUESTIONS, TEXT, buildTarget, matchScore, evaluate, runSelfTests, state }
 
 runSelfTests()
