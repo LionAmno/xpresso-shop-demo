@@ -304,7 +304,7 @@
 
 // ---------------------------------------------------------------------------
 // PRODUCT CATALOGUE – easy to edit. Language-independent values; texts in TEXT below.
-// Flavour values and aroma tags are placeholders.
+// Flavor values and aroma tags are placeholders.
 // TODO: durch echte Werte ersetzen (all "values" and "tags" below).
 // Tag IDs: chocolate, nut, caramel, berries, citrus, spice (labels in TEXT.tags).
 // ---------------------------------------------------------------------------
@@ -390,7 +390,7 @@ const TEXT = {
     inclVat: 'incl. VAT',
     tasteProfile: 'Taste profile & why it fits',
     addToCart: (name) => `Add ${name} to your cart in the shop`,
-    chooseCapsules: (name) => `Choose ${name} flavours in the shop`,
+    chooseCapsules: (name) => `Choose ${name} flavors in the shop`,
     gate: {
       eyebrow: 'Quiz complete',
       title: 'Your coffee matches are ready',
@@ -407,7 +407,7 @@ const TEXT = {
     samples: {
       title: 'Three free samples',
       only: 'X-Presso machine only',
-      text: 'You own an X-Presso capsule machine? Choose three capsule flavours in the shop and get them free with your next order.',
+      text: 'You own an X-Presso capsule machine? Choose three capsule flavors in the shop and get them free with your next order.',
       cta: 'Choose my 3 free samples',
       note: 'For owners of the X-Presso capsule machine · one set per customer.',
     },
@@ -435,7 +435,7 @@ const TEXT = {
       strength: { title: 'How strong do you like your coffee?', options: { mild: 'Mild', medium: 'Medium', strong: 'Strong' } },
       bitterness: { title: 'How do you feel about bitterness?', options: { no: "I don't like it", little: 'A little is fine', yes: 'I like it' } },
       acidity: { title: 'And acidity?', options: { none: "I'd rather not", subtle: 'Subtle', lively: 'Bright and lively' } },
-      aroma: { title: 'Which flavours suit you?', options: { chocolate: 'Chocolate and nuts', caramel: 'Caramel and sweetness', berries: 'Berries and citrus' } },
+      aroma: { title: 'Which flavors suit you?', options: { chocolate: 'Chocolate and nuts', caramel: 'Caramel and sweetness', berries: 'Berries and citrus' } },
       milk: { title: 'Do you drink it black or with milk?', options: { black: 'Black', milk: 'With milk' },
         optionHints: { milk: 'Then it can be a little stronger.' } },
       weights: { title: 'What matters most to you?', hint: 'Optional: pick up to two characteristics. They count double in your result.' },
@@ -703,7 +703,7 @@ const CART_ICON =
 function productCard(entry, target, likedTags, matches) {
   const { product, score } = entry
   const copy = t().products[product.id]
-  // Coffee goes straight into the shop cart; capsule families open the capsule section to pick a flavour.
+  // Coffee goes straight into the shop cart; capsule families open the capsule section to pick a flavor.
   const cartHref = product.group === 'capsule' ? shopLink(matches, '&show=capsules') : shopLink(matches, `&add=${product.id}`)
   const cartLink = el('a', { class: 'cart-link', href: cartHref, 'aria-label': product.group === 'capsule' ? t().chooseCapsules(copy.name) : t().addToCart(copy.name) })
   cartLink.innerHTML = CART_ICON
