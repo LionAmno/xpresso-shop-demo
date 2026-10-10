@@ -275,7 +275,7 @@
   .saved-note { margin: 1rem 0 0; font-size: 0.9rem; color: var(--muted); }
 
   /* Taste quiz offer: three free samples, X-Presso capsule machine owners only */
-  .samples-box {
+  .samples-box, .starter-box {
     display: grid;
     gap: 0.6rem;
     justify-items: start;
@@ -285,9 +285,10 @@
     border-radius: var(--radius);
     background: var(--card-bg);
   }
-  .samples-box h2 { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 0; font-size: 1.35rem; font-weight: 500; color: var(--text); }
+  .samples-box h2, .starter-box h2 { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 0; font-size: 1.35rem; font-weight: 500; color: var(--text); }
   .samples-only { padding: 0.1rem 0.6rem; border-radius: 999px; background: var(--brown); color: var(--surface); font-size: 0.75rem; font-weight: 700; }
-  .samples-box p { margin: 0; font-size: 0.95rem; }
+  .samples-box p, .starter-box p { margin: 0; font-size: 0.95rem; }
+  .starter-box .btn { border-radius: 999px; padding: 0 2rem; justify-self: start; }
   .samples-box .samples-note { font-size: 0.8rem; color: var(--muted); }
   .samples-box .btn { border-radius: 999px; padding: 0 2rem; }
 </style>
@@ -411,6 +412,18 @@ const TEXT = {
       cta: 'Choose my 3 free samples',
       note: 'For owners of the X-Presso capsule machine · one set per customer.',
     },
+    starter: {
+      title: 'Your starter pack',
+      text: (variety) => `X-Presso Coffee Capsules – ${variety}, 20 capsules. Our best match for your taste from your top capsule line.`,
+      owner: 'Free with your registered X-Presso Capsule Machine.',
+      buyer: 'Free for Club members with the X-Presso Capsule Machine – it goes into your cart with the machine.',
+      ordered: 'You have already ordered your starter pack.',
+      cta: 'Add my free starter pack',
+    },
+    noMatches: {
+      title: 'No X-Presso coffee for filter machines yet',
+      text: 'Our coffees are made for fully automatic, portafilter and X-Presso capsule machines, so we have no match for a filter machine. Change your answer to the first question if you also use one of these machines.',
+    },
     alsoInteresting: 'You might also like',
     restart: 'Restart quiz', toShop: 'See my matches in the shop',
     matchLabel: (n) => `${n} percent match`,
@@ -422,12 +435,13 @@ const TEXT = {
     dims: { intensity: 'Intensity', bitterness: 'Bitterness', acidity: 'Acidity', roast: 'Roast', body: 'Body', sweetness: 'Sweetness', fruitiness: 'Fruitiness' },
     tags: { chocolate: 'Chocolate', nut: 'Nut', caramel: 'Caramel', berries: 'Berries', citrus: 'Citrus', spice: 'Spice' },
     products: {
-      BB: { name: 'Brewed Coffee', format: 'Whole beans · 500 g' },
-      BE: { name: 'Espresso', format: 'Whole beans · 500 g' },
-      BS: { name: 'Speciality', format: 'Whole beans · 500 g' },
+      // Names as in the shop's product data.
+      BB: { name: 'Brewed Coffee Beans', format: 'Whole beans · 500 g' },
+      BE: { name: 'Espresso Coffee Beans', format: 'Whole beans · 500 g' },
+      BS: { name: 'Signature Blend', format: 'Whole beans · 500 g' },
       ES: { name: 'Ground Espresso', format: 'Ground · 250 g' },
-      XS: { name: 'X-Presso Espresso', format: 'Capsule' },
-      XL: { name: 'X-Presso Lungo', format: 'Capsule' },
+      XS: { name: 'X-Presso Coffee Capsules', format: 'Espresso line · 20 capsules' },
+      XL: { name: 'X-Presso Coffee Capsules', format: 'Lungo line · 20 capsules' },
     },
     questions: {
       method: { title: 'How do you make your coffee?', hint: 'So we only show coffee that suits your machine.',
@@ -476,6 +490,13 @@ function matchScore(target, values, weights) {
   return Math.round(100 - (deviation / ((SCALE_MAX - SCALE_MIN) * weightSum)) * 100)
 }
 
+// Machine → coffee mapping (single source of truth: src/shop/machineCoffee.ts), loaded from machine-coffee.json
+// at start. Without it (file missing) the quiz falls back to the groups below.
+let MACHINE_COFFEE = null
+
+/** Quiz product IDs allowed for the machine type (e.g. capsule → XS, XL; filter → none), or null without the config. */
+const allowedProducts = (method) => MACHINE_COFFEE?.quizProducts?.[method] ?? null
+
 function candidateGroups(method) {
   if (method === 'capsule') return { main: ['capsule'], other: ['beans', 'ground'] }
   // Ground coffee does not fit the bean hopper of a fully automatic machine.
@@ -492,11 +513,28 @@ function rank(products, target, weights) {
 function evaluate(answers) {
   const target = buildTarget(answers)
   const weights = buildWeights(answers.weights ?? [])
+  const allowed = allowedProducts(answers.method)
+  if (allowed) {
+    // Only coffee allowed for the machine type; no other formats.
+    const top = rank(PRODUCTS.filter((p) => allowed.includes(p.id)), target, weights).slice(0, TOP_N)
+    return { target, weights, top, alsoInteresting: null, starter: starterVariety(answers.method, top, target, weights) }
+  }
   const groups = candidateGroups(answers.method)
   const top = rank(PRODUCTS.filter((p) => groups.main.includes(p.group)), target, weights).slice(0, TOP_N)
   const otherBest = rank(PRODUCTS.filter((p) => groups.other.includes(p.group)), target, weights)[0]
   const alsoInteresting = otherBest && otherBest.score >= ALSO_INTERESTING_MIN_MATCH ? otherBest : null
-  return { target, weights, top, alsoInteresting }
+  return { target, weights, top, alsoInteresting, starter: null }
+}
+
+/** XP starter pack: the capsule variety of the top-match line (XS espresso / XL lungo) that fits the taste best;
+ * the default variety without a result. */
+function starterVariety(method, top, target, weights) {
+  if (method !== 'capsule' || !MACHINE_COFFEE) return null
+  const varieties = MACHINE_COFFEE.capsuleVarieties.filter((v) => v.line === top[0]?.product.id && v.values)
+  const best = varieties
+    .map((variety) => ({ variety, score: matchScore(target, variety.values, weights) }))
+    .sort((a, b) => b.score - a.score)[0]?.variety
+  return best ?? MACHINE_COFFEE.capsuleVarieties.find((v) => v.sku === MACHINE_COFFEE.defaultStarterSku) ?? null
 }
 
 /** "Why it fits" from the two smallest deviations. */
@@ -553,14 +591,15 @@ function readAccount() {
 }
 const isMember = () => Boolean(readAccount()?.member)
 
-/** Saves the quiz profile (answers + matches) on the Club member. */
-function saveProfile(matches) {
+/** Saves the quiz profile (answers + matches; XP: the starter pack variety) on the Club member. */
+function saveProfile(matches, starter) {
   const account = readAccount()
   if (!account?.member) return
   account.member.quizProfile = {
     takenOn: new Date().toISOString().slice(0, 10),
     answers: state.answers,
     match: matches.map((entry) => `${entry.product.id}-${entry.score}`).join(','),
+    ...(starter && { starterSku: starter.sku }),
   }
   try {
     localStorage.setItem(ACCOUNT_KEY, JSON.stringify(account))
@@ -593,6 +632,20 @@ const initialMethod = new URLSearchParams(location.search).get('method')
 if (QUESTIONS[0].options.some((option) => option.id === initialMethod)) {
   state.answers.method = initialMethod
   state.step = 1
+}
+
+/** Question 1 is pre-selected from the known machine (registered in the account, or chosen in the warranty form);
+ * the shopper can change it. Runs once the mapping is loaded. */
+function preselectMachine() {
+  if (state.step !== 0 || state.answers.method) return
+  let machineId = readAccount()?.member?.machineId
+  try {
+    machineId = machineId || localStorage.getItem('xpresso-machine')
+  } catch {
+    // No storage: nothing to pre-select.
+  }
+  const method = MACHINE_COFFEE?.machines?.[machineId]?.quizMethod
+  if (method) state.answers.method = method
 }
 
 // Back from joining the Club: show the results of the answers given before.
@@ -766,20 +819,37 @@ function samplesBox(matches) {
     el('p', { class: 'samples-note' }, t().samples.note))
 }
 
+/** XP: the starter pack chosen by the result. Owners of a registered XP add it to the cart; buyers get it with the machine. */
+function starterBox(starter) {
+  const warranty = readAccount()?.member?.warranty
+  const owner = warranty?.machineId === 'XP' && warranty.coffeeGift
+  return el('section', { class: 'starter-box', 'aria-labelledby': 'starter-title' },
+    el('h2', { id: 'starter-title' }, t().starter.title),
+    el('p', {}, t().starter.text(starter.name)),
+    owner && warranty.coffeeGiftOrdered ? el('p', {}, t().starter.ordered)
+      : owner ? [el('p', {}, t().starter.owner), el('a', { class: 'btn', href: 'shop/?starter=1' }, t().starter.cta)]
+        : el('p', {}, t().starter.buyer))
+}
+
 function renderResults() {
   if (!isMember()) return renderGate()
-  const { target, top, alsoInteresting } = evaluate(state.answers)
+  const { target, top, alsoInteresting, starter } = evaluate(state.answers)
   const aroma = QUESTIONS.find((q) => q.id === 'aroma').options.find((o) => o.id === state.answers.aroma)
   const likedTags = aroma?.tags ?? []
   const matches = [...top, alsoInteresting].filter(Boolean)
-  saveProfile(matches)
+  saveProfile(matches, starter)
   const heading = el('h1', { tabindex: '-1', class: 'results-title' }, t().resultTitle)
 
   show(
     el('header', { class: 'results-head' },
       el('p', { class: 'results-eyebrow' }, t().resultEyebrow),
       heading),
-    el('div', { class: 'result-grid' }, top.map((entry) => productCard(entry, target, likedTags, matches))),
+    top.length === 0
+      ? el('section', { class: 'starter-box', 'aria-labelledby': 'no-matches-title' },
+          el('h2', { id: 'no-matches-title' }, t().noMatches.title),
+          el('p', {}, t().noMatches.text))
+      : el('div', { class: 'result-grid' }, top.map((entry) => productCard(entry, target, likedTags, matches))),
+    starter ? starterBox(starter) : null,
     alsoInteresting
       ? el('p', { class: 'also' },
           `${t().alsoInteresting}: `,
@@ -819,10 +889,17 @@ function restart() {
 }
 
 // For external tests (no tracking).
-window.XPressoQuiz = { PRODUCTS, DIMENSIONS, QUESTIONS, TEXT, buildTarget, matchScore, evaluate, runSelfTests, state }
+window.XPressoQuiz = { PRODUCTS, DIMENSIONS, QUESTIONS, TEXT, buildTarget, matchScore, evaluate, runSelfTests, state, machineCoffee: () => MACHINE_COFFEE }
 
 runSelfTests()
-render()
+fetch('machine-coffee.json')
+  .then((response) => (response.ok ? response.json() : null))
+  .catch(() => null)
+  .then((config) => {
+    MACHINE_COFFEE = config
+    preselectMachine()
+    render()
+  })
 </script>
 </body>
 </html>
